@@ -1,0 +1,2 @@
+#!/bin/sh
+exec dnsmasq -C /etc/dnsmasq.d/usb0.conf --no-daemon 2>&1

@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /usr/local/sbin/usb-gadget.sh 2>&1

@@ -1,0 +1,2 @@
+#!/bin/sh
+exec dropbear -R -F -E -p 22 2>&1

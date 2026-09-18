@@ -3,12 +3,6 @@ set -euo pipefail
 # ============================================================================
 # Void-Linux-UFI001B: Minimal Void Linux glibc for UFI001B (MSM8916)
 # ============================================================================
-# Features:
-#   - USB RNDIS/ECM with DHCP (192.168.68.1)
-#   - WiFi STA/AP via WCNSS
-#   - SSH (dropbear)
-#   - runit init (no systemd)
-# ============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD="$SCRIPT_DIR/build"
@@ -34,24 +28,24 @@ fi
 # --- extract rootfs ---
 echo "==> extracting rootfs"
 mkdir -p "$ROOTFS"
-tar -Jxf "$TARBALL" -C "$BUILD"
-
-# ROOTFS tarball may extract to a subdirectory, find and move it
-EXTRACTED=$(find "$BUILD" -maxdepth 1 -type d -name 'void-*' | head -n1)
-if [ -n "$EXTRACTED" ] && [ "$EXTRACTED" != "$ROOTFS" ]; then
-    mv "$EXTRACTED" "$ROOTFS"
-fi
+tar -Jxf "$TARBALL" -C "$ROOTFS" --strip-components=1
 
 # Verify rootfs
 if [ ! -d "$ROOTFS/usr" ]; then
-    echo "ERROR: rootfs extraction failed, no /usr found" >&2
-    ls -la "$BUILD" >&2
+    echo "ERROR: rootfs extraction failed" >&2
+    ls -la "$ROOTFS" >&2
     exit 1
 fi
+echo "  rootfs OK: $(ls $ROOTFS | tr '\n' ' ')"
 
 # --- copy qemu for cross-build ---
 if [ "$(uname -m)" != "aarch64" ]; then
-    cp /usr/bin/qemu-aarch64-static "$ROOTFS/usr/bin/" 2>/dev/null || true
+    if [ -f /usr/bin/qemu-aarch64-static ]; then
+        cp /usr/bin/qemu-aarch64-static "$ROOTFS/usr/bin/"
+        echo "  qemu copied"
+    else
+        echo "  WARN: qemu-aarch64-static not found, skipping"
+    fi
 fi
 
 # --- configure XBPS repos ---
@@ -78,25 +72,20 @@ trap cleanup EXIT
 echo "==> syncing XBPS repos"
 chroot "$ROOTFS" xbps-install -S
 
-# --- install packages (one by one for robustness) ---
+# --- install packages ---
 echo "==> installing packages"
-for pkg in \
+chroot "$ROOTFS" xbps-install -y \
     bash coreutils curl dnsmasq dropbear ethtool findutils grep \
     iproute2 iw kmod nano procps sed sudo tar udev usbutils \
-    wget which wpa_supplicant xbps xz; do
-    echo "  installing $pkg"
-    chroot "$ROOTFS" xbps-install -y "$pkg" || echo "  WARN: $pkg failed, continuing"
-done
+    wget which wpa_supplicant xbps xz
 
-# --- install Chinese fonts ---
+# --- install Chinese fonts (optional) ---
 chroot "$ROOTFS" xbps-install -y wqy-microhei 2>/dev/null || true
 
 # --- locale ---
 echo "==> configuring locale"
 mkdir -p "$ROOTFS/etc/default"
 echo "LANG=en_US.UTF-8" > "$ROOTFS/etc/locale.conf"
-chroot "$ROOTFS" bash -c 'echo "en_US.UTF-8 UTF-8" >> /etc/default/libc-locales' 2>/dev/null || true
-chroot "$ROOTFS" xbps-reconfigure -f glibc-locales 2>/dev/null || true
 
 # --- root password ---
 echo "root:root" | chroot "$ROOTFS" chpasswd
@@ -106,13 +95,12 @@ echo "ufi001b" > "$ROOTFS/etc/hostname"
 
 # --- fstab ---
 cat > "$ROOTFS/etc/fstab" << 'EOF'
-# <device>  <mount>  <type>  <options>  <dump>  <pass>
 proc        /proc    proc    defaults   0       0
 sysfs       /sys     sysfs   defaults   0       0
 tmpfs       /tmp     tmpfs   defaults   0       0
 EOF
 
-# --- kernel (extract APK) ---
+# --- kernel ---
 echo "==> installing kernel"
 if [ ! -f "$BUILD/$KERNEL_APK" ]; then
     curl -fSL -o "$BUILD/$KERNEL_APK" \
@@ -161,5 +149,5 @@ done
 : > "$ROOTFS/root/.bash_history" 2>/dev/null || true
 rm -rf "$ROOTFS/tmp"/*
 
-echo "==> done"
+echo "==> build complete"
 du -sh "$ROOTFS"

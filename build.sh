@@ -24,12 +24,12 @@ echo "==> Void-Linux-UFI001B ($GLIBC/$ARCH)"
 rm -rf "$BUILD"
 mkdir -p "$BUILD" "$OUT"
 
-# --- fetch Void bootstrap tarball ---
-TARBALL="$BUILD/void-$ARCH-$GLIBC.tar.xz"
+# --- fetch Void ROOTFS tarball ---
+TARBALL="$BUILD/$ROOTFS_TARBALL"
 if [ ! -f "$TARBALL" ]; then
-    echo "==> downloading Void $GLIBC bootstrap"
+    echo "==> downloading Void ROOTFS"
     curl -fSL -o "$TARBALL" \
-        "$VOID_MIRROR/live/current/void-$ARCH-$GLIBC.tar.xz"
+        "$VOID_MIRROR/live/current/$ROOTFS_TARBALL"
 fi
 
 # --- extract rootfs ---
@@ -70,7 +70,7 @@ trap cleanup EXIT
 
 # --- sync repos ---
 echo "==> syncing XBPS repos"
-chroot "$ROOTFS" xbps-install -S -y
+chroot "$ROOTFS" xbps-install -S
 
 # --- install packages ---
 echo "==> installing packages"
@@ -101,12 +101,13 @@ chroot "$ROOTFS" xbps-install -y \
     xz
 
 # --- install Chinese fonts ---
-chroot "$ROOTFS" xbps-install -y wqy-zenhei-fonts 2>/dev/null || \
-    chroot "$ROOTFS" xbps-install -y fonts-wqy-zenhei 2>/dev/null || true
+chroot "$ROOTFS" xbps-install -y wqy-microhei 2>/dev/null || true
 
 # --- locale ---
-chroot "$ROOTFS" bash -c 'echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen'
-chroot "$ROOTFS" locale-gen 2>/dev/null || true
+# Void uses a different locale setup
+chroot "$ROOTFS" bash -c 'echo "LANG=en_US.UTF-8" > /etc/locale.conf'
+chroot "$ROOTFS" bash -c 'echo "en_US.UTF-8 UTF-8" >> /etc/default/libc-locales'
+chroot "$ROOTFS" xbps-reconfigure -f glibc-locales 2>/dev/null || true
 
 # --- root password ---
 echo "root:root" | chroot "$ROOTFS" chpasswd

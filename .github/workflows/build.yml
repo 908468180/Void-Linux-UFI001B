@@ -17,18 +17,29 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y qemu-user-static
 
-      - name: Show environment
-        run: |
-          uname -a
-          ls /usr/bin/qemu-* 2>/dev/null || echo "no qemu binaries"
-          which curl
-
       - name: Build
-        run: bash -x build.sh 2>&1 | tail -200
+        run: bash build.sh
 
-      - name: Upload artifacts
+      - name: Debug build output
+        if: always()
+        run: |
+          echo "=== build/ contents ==="
+          ls -lhR build/ 2>/dev/null || echo "no build/"
+          echo "=== out/ contents ==="
+          ls -lh out/ 2>/dev/null || echo "no out/"
+
+      - name: Upload rootfs
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: void-linux-ufi001b
-          path: out/
+          name: void-linux-ufi001b-rootfs
+          path: build/rootfs/
+          if-no-files-found: warn
+
+      - name: Upload tarball
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: void-linux-ufi001b-tarball
+          path: out/*.tar.xz
+          if-no-files-found: warn

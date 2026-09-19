@@ -149,5 +149,10 @@ done
 : > "$ROOTFS/root/.bash_history" 2>/dev/null || true
 rm -rf "$ROOTFS/tmp"/*
 
+# --- pack rootfs ---
+echo "==> packing rootfs"
+tar -Jcf "$OUT/rootfs.tar.xz" -C "$ROOTFS" .
+
 echo "==> build complete"
+ls -lh "$OUT/"
 du -sh "$ROOTFS"

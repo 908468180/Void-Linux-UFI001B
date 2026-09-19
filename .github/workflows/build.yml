@@ -26,6 +26,7 @@ jobs:
       - name: Install packages
         run: |
           sudo cp /usr/bin/qemu-aarch64-static rootfs/usr/bin/
+          sudo cp /etc/resolv.conf rootfs/etc/resolv.conf
           sudo mount --bind /dev rootfs/dev
           sudo mount -t proc proc rootfs/proc
           sudo mount -t sysfs sysfs rootfs/sys

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail
 # ============================================================================
 # Void-Linux-UFI001B: Minimal Void Linux glibc for UFI001B (MSM8916)
 # ============================================================================
@@ -151,7 +151,7 @@ rm -rf "$ROOTFS/tmp"/*
 
 # --- pack rootfs ---
 echo "==> packing rootfs"
-tar -Jcf "$OUT/rootfs.tar.xz" -C "$ROOTFS" .
+tar -cf "$OUT/rootfs.tar" -C "$ROOTFS" .
 
 echo "==> build complete"
 ls -lh "$OUT/"

@@ -25,7 +25,7 @@ jobs:
           bash -n build.sh && echo "syntax OK" || echo "syntax ERROR"
 
       - name: Build
-        run: bash -ex build.sh
+        run: bash build.sh
 
       - name: Upload rootfs
         if: success()

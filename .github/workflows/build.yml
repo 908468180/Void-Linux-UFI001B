@@ -17,16 +17,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y qemu-user-static
 
-      - name: Build
-        run: bash build.sh
-
-      - name: Debug build output
-        if: always()
+      - name: Check script
         run: |
-          echo "=== build/ contents ==="
-          ls -lhR build/ 2>/dev/null || echo "no build/"
-          echo "=== out/ contents ==="
-          ls -lh out/ 2>/dev/null || echo "no out/"
+          file build.sh
+          head -1 build.sh
+          cat -A build.sh | head -3
+          bash -n build.sh && echo "syntax OK" || echo "syntax ERROR"
+
+      - name: Build
+        run: bash -ex build.sh
 
       - name: Upload rootfs
         if: success()
@@ -34,12 +33,4 @@ jobs:
         with:
           name: void-linux-ufi001b-rootfs
           path: build/rootfs/
-          if-no-files-found: warn
-
-      - name: Upload tarball
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: void-linux-ufi001b-tarball
-          path: out/*.tar.xz
           if-no-files-found: warn

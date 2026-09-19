@@ -18,15 +18,14 @@ jobs:
           sudo apt-get install -y qemu-user-static
 
       - name: Build
-        run: |
-          bash build.sh 2>&1 | tee build.log
-          exit ${PIPESTATUS[0]}
+        run: bash build.sh > build.log 2>&1; echo "EXIT=$?"
 
-      - name: Show build log tail
-        if: failure()
+      - name: Show log
+        if: always()
         run: |
-          echo "=== TAIL OF BUILD LOG ==="
-          tail -80 build.log
+          echo "=== BUILD LOG (last 100 lines) ==="
+          tail -100 build.log
+          echo "=== END ==="
 
       - name: Upload rootfs
         if: success()

@@ -17,25 +17,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y qemu-user-static
 
-      - name: Debug
-        run: |
-          pwd
-          ls -la
-          ls -la build.sh
-          file build.sh
-          cat build.sh | head -5
-
       - name: Build
         run: |
-          chmod +x build.sh
-          ./build.sh 2>&1 | tee build.log
-          echo "EXIT CODE: $?"
+          bash build.sh 2>&1 | tee build.log
+          exit ${PIPESTATUS[0]}
 
       - name: Show build log tail
-        if: always()
+        if: failure()
         run: |
           echo "=== TAIL OF BUILD LOG ==="
-          tail -50 build.log 2>/dev/null || echo "no build.log"
+          tail -80 build.log
 
       - name: Upload rootfs
         if: success()
@@ -43,4 +34,4 @@ jobs:
         with:
           name: void-linux-ufi001b-rootfs
           path: build/rootfs/
-          if-no-files-found: warn
+          if-no-files-found: error

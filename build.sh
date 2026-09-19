@@ -102,13 +102,14 @@ EOF
 # --- kernel ---
 echo "==> installing kernel"
 if [ ! -f "$BUILD/$KERNEL_APK" ]; then
-    curl -fSL -o "$BUILD/$KERNEL_APK" \
-        "$KERNEL_REPO/releases/download/v1.0/$KERNEL_APK" 2>/dev/null || true
+    (cd "$BUILD" && curl -fsSL -o "$KERNEL_APK" "$KERNEL_MIRROR$KERNEL_APK")
 fi
 if [ -f "$BUILD/$KERNEL_APK" ]; then
-    mkdir -p "$ROOTFS/boot"
-    tar -zxf "$BUILD/$KERNEL_APK" -C "$ROOTFS/boot" 2>/dev/null || \
-        cp "$BUILD/$KERNEL_APK" "$ROOTFS/boot/" 2>/dev/null || true
+    tar -xkzf "$BUILD/$KERNEL_APK" -C "$ROOTFS" \
+        --exclude=.PKGINFO --exclude='.SIGN*'
+    echo "  kernel unpacked:"
+    ls -l "$ROOTFS/boot" 2>/dev/null
+    ls "$ROOTFS/boot/dtbs/qcom/" 2>/dev/null | head -5
 fi
 
 # --- overlay ---

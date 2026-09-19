@@ -58,6 +58,18 @@ jobs:
           echo "ufi001b" | sudo tee rootfs/etc/hostname
           echo "LANG=en_US.UTF-8" | sudo tee rootfs/etc/locale.conf
 
+      - name: Install kernel
+        if: success()
+        run: |
+          curl -fsSL -o build/kernel.apk \
+            "http://mirror.postmarketos.org/postmarketos/main/aarch64/linux-postmarketos-qcom-msm8916-6.12.1-r6.apk"
+          tar -xkzf build/kernel.apk -C rootfs \
+            --exclude=.PKGINFO --exclude='.SIGN*'
+          echo "boot:"
+          ls rootfs/boot/ 2>/dev/null
+          echo "dtb total: $(ls rootfs/boot/dtbs/qcom/ 2>/dev/null | wc -l)"
+          ls rootfs/boot/dtbs/qcom/ 2>/dev/null | grep -i ufi || echo "NO UFI DTB FOUND"
+
       - name: Overlay + firmware
         if: success()
         run: |

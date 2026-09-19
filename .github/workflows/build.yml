@@ -3,8 +3,6 @@ name: Build Void Linux UFI001B
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
   build:
@@ -12,14 +10,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Test
-        run: echo "hello world"
+      - name: Debug
+        run: |
+          echo "pwd=$(pwd)"
+          echo "files=$(ls)"
+          cat build.sh | wc -l
+          xxd build.sh | head -3
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-user-static
 
-      - name: Build test
+      - name: Download Void ROOTFS
         run: |
-          bash -x build.sh
+          mkdir -p build out
+          echo "downloading..."
+          curl -fSL -o build/void-rootfs.tar.xz \
+            "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz"
+          echo "download done, size=$(ls -lh build/void-rootfs.tar.xz)"
+
+      - name: Extract rootfs
+        run: |
+          mkdir -p build/rootfs
+          tar -Jxf build/void-rootfs.tar.xz -C build/rootfs --strip-components=1
+          echo "rootfs OK: $(ls build/rootfs | head -10)"
+
+      - name: Upload rootfs
+        uses: actions/upload-artifact@v4
+        with:
+          name: void-linux-ufi001b-rootfs
+          path: build/rootfs/
+          if-no-files-found: error

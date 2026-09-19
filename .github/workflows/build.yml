@@ -21,7 +21,6 @@ jobs:
           curl -fSL -o build/void-rootfs.tar.xz \
             "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz"
           tar -Jxf build/void-rootfs.tar.xz -C rootfs --strip-components=1
-          echo "rootfs: $(du -sh rootfs | cut -f1)"
 
       - name: Install packages
         run: |
@@ -31,21 +30,36 @@ jobs:
           sudo mount -t proc proc rootfs/proc
           sudo mount -t sysfs sysfs rootfs/sys
           sudo mount --bind /dev/pts rootfs/dev/pts
-          sudo chroot rootfs xbps-install -S
+          set +e
+          sudo chroot rootfs xbps-install -S > /tmp/xbps-sync.log 2>&1
+          echo "xbps-sync exit=$?" > /tmp/install.log
+          cat /tmp/xbps-sync.log >> /tmp/install.log
           sudo chroot rootfs xbps-install -y \
             bash coreutils curl dnsmasq dropbear ethtool findutils grep \
             iproute2 iw kmod nano procps sed sudo tar udev usbutils \
-            wget which wpa_supplicant xbps xz
-          sudo chroot rootfs xbps-install -y wqy-microhei 2>/dev/null || true
-          sudo umount rootfs/dev/pts rootfs/dev rootfs/proc rootfs/sys
+            wget which wpa_supplicant xbps xz > /tmp/xbps-install.log 2>&1
+          echo "xbps-install exit=$?" >> /tmp/install.log
+          cat /tmp/xbps-install.log >> /tmp/install.log
+          sudo umount rootfs/dev/pts rootfs/dev rootfs/proc rootfs/sys 2>/dev/null
+          cat /tmp/install.log
+
+      - name: Upload debug log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-log
+          path: /tmp/install.log
+          if-no-files-found: warn
 
       - name: Configure
+        if: success()
         run: |
           echo "root:root" | sudo chroot rootfs chpasswd
           echo "ufi001b" | sudo tee rootfs/etc/hostname
           echo "LANG=en_US.UTF-8" | sudo tee rootfs/etc/locale.conf
 
       - name: Overlay + firmware
+        if: success()
         run: |
           sudo cp -a overlay/. rootfs/
           sudo mkdir -p rootfs/lib/firmware/wlan/prima
@@ -58,11 +72,12 @@ jobs:
           done
 
       - name: Pack rootfs
+        if: success()
         run: |
           sudo tar -Jcf out/rootfs.tar.xz -C rootfs .
-          ls -lh out/
 
       - name: Upload rootfs
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: void-linux-ufi001b

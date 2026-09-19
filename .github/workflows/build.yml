@@ -12,25 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Test
+        run: echo "hello world"
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-user-static
 
-      - name: Build
-        run: bash build.sh > build.log 2>&1; echo "EXIT=$?"
-
-      - name: Show log
-        if: always()
+      - name: Build test
         run: |
-          echo "=== BUILD LOG (last 100 lines) ==="
-          tail -100 build.log
-          echo "=== END ==="
-
-      - name: Upload rootfs
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: void-linux-ufi001b-rootfs
-          path: build/rootfs/
-          if-no-files-found: error
+          bash -x build.sh

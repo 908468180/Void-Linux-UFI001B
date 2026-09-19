@@ -1,7 +1,7 @@
 #!/bin/bash -e
-# flash-all.sh - flash the Void Linux image to an UFI001B.
+# flash-all.sh - flash the Void Linux UFI001B image to an UFI001B.
 #
-# Requires: edl (https://github.com/bkerler/edl), fastboot
+# Requires: edl (https://github.com/bkerler/edl), fastboot (`sudo apt install fastboot`)
 # Usage:    bash flash-all.sh [--backup]
 # Run with --backup first to store fsc/fsg/modem/modemst1/modemst2/persist/sec
 # from the ORIGINAL Android system before overwriting anything.
@@ -66,4 +66,4 @@ echo "=============================="
 fastboot reboot 2>/dev/null
 
 echo ""
-echo "Device will boot Void Linux. SSH in via 192.168.68.1 (RNDIS)."
+echo "Device will boot Void Linux. SSH in via 192.168.68.1 (RNDIS), root/root."

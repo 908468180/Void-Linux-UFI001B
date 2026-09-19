@@ -119,3 +119,62 @@ jobs:
           name: void-linux-ufi001b
           path: out/rootfs.tar.xz
           if-no-files-found: error
+
+  images:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download rootfs
+        uses: actions/download-artifact@v4
+        with:
+          name: void-linux-ufi001b
+          path: _rootfs
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-aarch64-linux-gnu gcc-arm-none-eabi \
+            device-tree-compiler e2fsprogs \
+            android-sdk-libsparse-utils unzip wget
+
+      - name: Extract rootfs
+        run: |
+          mkdir -p rootfs
+          tar -Jxf _rootfs/rootfs.tar.xz -C rootfs
+
+      - name: Build bootloader
+        run: bash "$GITHUB_WORKSPACE/scripts/build-bootloader.sh"
+        env:
+          BUILD: ${{ runner.temp }}/ufi
+          SCRIPT_DIR: ${{ github.workspace }}/scripts
+
+      - name: Fetch stock firmware + GPT
+        run: bash "$GITHUB_WORKSPACE/scripts/fetch-firmware.sh"
+        env:
+          BUILD: ${{ runner.temp }}/ufi
+          SCRIPT_DIR: ${{ github.workspace }}/scripts
+
+      - name: Build flash images
+        run: bash "$GITHUB_WORKSPACE/scripts/build-images.sh"
+        env:
+          BUILD: ${{ runner.temp }}/ufi
+          ROOTFS: ${{ github.workspace }}/rootfs
+          SCRIPT_DIR: ${{ github.workspace }}/scripts
+
+      - name: Collect flash package
+        run: |
+          mkdir -p out
+          cp flash/flash-all.sh "$RUNNER_TEMP/ufi/files/"
+          chmod -R a+rX "$RUNNER_TEMP/ufi/files"
+          cp -a "$RUNNER_TEMP/ufi/files/." out/
+          ls -l out/
+
+      - name: Upload flash package
+        uses: actions/upload-artifact@v4
+        with:
+          name: void-linux-ufi001b-files
+          path: out/
+          if-no-files-found: error

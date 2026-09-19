@@ -65,28 +65,6 @@ jobs:
             "http://mirror.postmarketos.org/postmarketos/main/aarch64/linux-postmarketos-qcom-msm8916-6.12.1-r6.apk"
           tar -xkzf build/kernel.apk -C rootfs \
             --exclude=.PKGINFO --exclude='.SIGN*'
-          {
-            echo "boot:"
-            ls -l rootfs/boot/
-            echo "dtb total: $(ls rootfs/boot/dtbs/qcom/ 2>/dev/null | wc -l)"
-            ls rootfs/boot/dtbs/qcom/ 2>/dev/null | grep -i ufi || echo "NO UFI DTB FOUND"
-            echo "extlinux:"
-            cat rootfs/boot/extlinux/extlinux.conf
-            echo "modules:"
-            tree -d rootfs/usr/lib/modules | head -3
-            ls rootfs/usr/lib/modules/
-            echo "wcnss firmware:"
-            ls rootfs/lib/firmware/ | grep wcnss
-          } > /tmp/kernel.log 2>&1
-          cat /tmp/kernel.log
-
-      - name: Upload kernel debug
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: kernel-log
-          path: /tmp/kernel.log
-          if-no-files-found: warn
 
       - name: Overlay + firmware
         if: success()
@@ -101,6 +79,33 @@ jobs:
           for svc in dropbear dnsmasq usb-gadget; do
             [ -d "rootfs/etc/sv/$svc" ] && sudo ln -sf "/etc/sv/$svc" "rootfs/var/service/$svc"
           done
+
+      - name: Verify build
+        if: success()
+        run: |
+          {
+            echo "=== boot ==="
+            ls -l rootfs/boot/
+            echo "=== dtb check ==="
+            echo "dtb total: $(ls rootfs/boot/dtbs/qcom/ 2>/dev/null | wc -l)"
+            ls rootfs/boot/dtbs/qcom/ 2>/dev/null | grep -i ufi || echo "NO UFI DTB FOUND"
+            echo "=== extlinux ==="
+            cat rootfs/boot/extlinux/extlinux.conf
+            echo "=== modules: $(ls rootfs/usr/lib/modules/ 2>/dev/null)"
+            echo "=== wcnss firmware ==="
+            ls -l rootfs/lib/firmware/ | grep wcnss || true
+            echo "=== services ==="
+            ls -l rootfs/var/service/
+          } > /tmp/kernel.log 2>&1
+          cat /tmp/kernel.log
+
+      - name: Upload kernel debug
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-log
+          path: /tmp/kernel.log
+          if-no-files-found: warn
 
       - name: Pack rootfs
         if: success()

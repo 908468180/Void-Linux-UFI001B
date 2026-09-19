@@ -10,35 +10,60 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug
-        run: |
-          echo "pwd=$(pwd)"
-          echo "files=$(ls)"
-          cat build.sh | wc -l
-          xxd build.sh | head -3
-
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-user-static
 
-      - name: Download Void ROOTFS
+      - name: Download & Extract Void ROOTFS
         run: |
-          mkdir -p build out
-          echo "downloading..."
+          mkdir -p build out rootfs
           curl -fSL -o build/void-rootfs.tar.xz \
             "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz"
-          echo "download done, size=$(ls -lh build/void-rootfs.tar.xz)"
+          tar -Jxf build/void-rootfs.tar.xz -C rootfs --strip-components=1
+          echo "rootfs: $(du -sh rootfs | cut -f1)"
 
-      - name: Extract rootfs
+      - name: Install packages
         run: |
-          mkdir -p build/rootfs
-          tar -Jxf build/void-rootfs.tar.xz -C build/rootfs --strip-components=1
-          echo "rootfs OK: $(ls build/rootfs | head -10)"
+          sudo cp /usr/bin/qemu-aarch64-static rootfs/usr/bin/
+          sudo mount --bind /dev rootfs/dev
+          sudo mount -t proc proc rootfs/proc
+          sudo mount -t sysfs sysfs rootfs/sys
+          sudo mount --bind /dev/pts rootfs/dev/pts
+          sudo chroot rootfs xbps-install -S
+          sudo chroot rootfs xbps-install -y \
+            bash coreutils curl dnsmasq dropbear ethtool findutils grep \
+            iproute2 iw kmod nano procps sed sudo tar udev usbutils \
+            wget which wpa_supplicant xbps xz
+          sudo chroot rootfs xbps-install -y wqy-microhei 2>/dev/null || true
+          sudo umount rootfs/dev/pts rootfs/dev rootfs/proc rootfs/sys
+
+      - name: Configure
+        run: |
+          echo "root:root" | sudo chroot rootfs chpasswd
+          echo "ufi001b" | sudo tee rootfs/etc/hostname
+          echo "LANG=en_US.UTF-8" | sudo tee rootfs/etc/locale.conf
+
+      - name: Overlay + firmware
+        run: |
+          sudo cp -a overlay/. rootfs/
+          sudo mkdir -p rootfs/lib/firmware/wlan/prima
+          sudo cp vendor/lib/firmware/wcnss*.mdt rootfs/lib/firmware/ 2>/dev/null || true
+          sudo cp vendor/lib/firmware/wcnss*.b* rootfs/lib/firmware/ 2>/dev/null || true
+          sudo cp vendor/lib/firmware/wlan/prima/WCNSS_qcom_wlan_nv.bin rootfs/lib/firmware/wlan/prima/ 2>/dev/null || true
+          sudo mkdir -p rootfs/var/service
+          for svc in dropbear dnsmasq usb-gadget; do
+            [ -d "rootfs/etc/sv/$svc" ] && sudo ln -sf "/etc/sv/$svc" "rootfs/var/service/$svc"
+          done
+
+      - name: Pack rootfs
+        run: |
+          sudo tar -Jcf out/rootfs.tar.xz -C rootfs .
+          ls -lh out/
 
       - name: Upload rootfs
         uses: actions/upload-artifact@v4
         with:
-          name: void-linux-ufi001b-rootfs
-          path: build/rootfs/
+          name: void-linux-ufi001b
+          path: out/rootfs.tar.xz
           if-no-files-found: error
